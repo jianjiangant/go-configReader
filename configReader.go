@@ -66,11 +66,9 @@ func (ConfigReader) analysisConfigLine(line string) (AreaType, interface{}) {
 	line = strings.TrimSpace(line)
 	r, _ := regexp.Compile(`^\[.+\]$`)
 	str_match := r.FindString(line)
-	fmt.Println("str_match: ", str_match)
 	if str_match != "" {
 		r, _ := regexp.Compile(`[\w\.\-_]+`)
 		areaName := r.FindString(str_match)
-		fmt.Println("areaName : ", areaName)
 		if areaName == "" {
 			return INVALIDLINE, nil
 		}
