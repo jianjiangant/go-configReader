@@ -1,8 +1,8 @@
 package configReader_test
 
 import (
-	"configReader"
 	"fmt"
+	"go-configReader"
 	"testing"
 )
 
