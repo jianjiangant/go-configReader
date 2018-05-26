@@ -6,6 +6,7 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"strconv"
 )
 
 // config line type
@@ -19,6 +20,8 @@ const (
 type AreaType int
 
 type DoubleMap map[string]map[string]interface{}
+
+var configInst ConfigReaderI = &ConfigReader{confMap: make(DoubleMap)}
 
 type ConfigReaderI interface {
 	SetConfigPath(path string) error
@@ -73,7 +76,12 @@ func (ConfigReader) analysisConfigLine(line string) (AreaType, interface{}) {
 			return INVALIDLINE, nil
 		}
 		return AREA, areaName
-	} else if match, _ := regexp.MatchString(`^#`, line); match == true {
+	// BUG : if the head of line has several blank or Tab , the comment will not be matched
+	// [changed]
+	//  old : ^# 
+	//  new : see below
+	//  test : NO
+	} else if match, _ := regexp.MatchString(`^\s*#`, line); match == true {
 		return COMMENT, line
 	}
 
@@ -100,6 +108,7 @@ func (this *ConfigReader) Scanner() error {
 		areaType, data := this.analysisConfigLine(scanner.Text())
 		switch areaType {
 		case AREA:
+			// set last field map to the area map when the find a area type .
 			if len(field_map) != 0 && currentArea != "" {
 				this.confMap[currentArea] = field_map
 			}
@@ -125,7 +134,6 @@ func (this *ConfigReader) Scanner() error {
 
 }
 
-var configInst ConfigReaderI = &ConfigReader{confMap: make(DoubleMap)}
 
 func SetConfigPath(path string) error {
 	return configInst.SetConfigPath(path)
@@ -149,4 +157,33 @@ func InitConfigReader(path string) error {
 		return err
 	}
 	return scanner()
+}
+
+// init configuration file 
+func Init(path string) error{
+	if err := SetConfigPath(path); err != nil {
+		return err
+	}
+	return scanner()
+}
+
+func GetInt(s , f string) (v int, e error){
+	var vstr string
+	if vstr ,  e = GetField(s ,f) ; e!=nil{
+		return strconv.Atoi(vstr)
+	} else {
+		return
+	}
+}
+
+func GetInt32(s , f string){
+}
+
+func GetInt64(s , f string){
+}
+
+func GetFloat(s , f string){
+}
+
+func GetString(s , f string){
 }
