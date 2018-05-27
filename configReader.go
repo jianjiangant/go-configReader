@@ -14,6 +14,7 @@ const (
 	AREA = iota
 	FIELD
 	COMMENT
+	BLANK
 	INVALIDLINE
 )
 
@@ -21,7 +22,6 @@ type AreaType int
 
 type DoubleMap map[string]map[string]interface{}
 
-var configInst ConfigReaderI = &ConfigReader{confMap: make(DoubleMap)}
 
 type ConfigReaderI interface {
 	SetConfigPath(path string) error
@@ -67,22 +67,24 @@ func (this *ConfigReader) SetConfigPath(path string) error {
 
 func (ConfigReader) analysisConfigLine(line string) (AreaType, interface{}) {
 	line = strings.TrimSpace(line)
-	r, _ := regexp.Compile(`^\[.+\]$`)
-	str_match := r.FindString(line)
-	if str_match != "" {
-		r, _ := regexp.Compile(`[\w\.\-_]+`)
-		areaName := r.FindString(str_match)
+	if len(line) == 0 {
+		return BLANK , nil
+	}
+
+	if match, _ := regexp.MatchString(`^#[.]*`, line); match == true {
+		return COMMENT, line
+	}
+//	r, _ := regexp.Compile(`^\[[\w\s]*[\d\w\-_]*\][\s]*$`)
+	r, _ := regexp.Compile(`^\[[\s]*[a-zA-Z]+[\w-\.]*[\s]*\]$`)
+	strMatch := r.FindString(line)
+	if strMatch != "" {
+		strMatch = strings.TrimSpace(strMatch)
+		r, _ := regexp.Compile(`[\w-]+`)
+		areaName := r.FindString(strMatch)
 		if areaName == "" {
 			return INVALIDLINE, nil
 		}
 		return AREA, areaName
-	// BUG : if the head of line has several blank or Tab , the comment will not be matched
-	// [changed]
-	//  old : ^# 
-	//  new : see below
-	//  test : NO
-	} else if match, _ := regexp.MatchString(`^\s*#`, line); match == true {
-		return COMMENT, line
 	}
 
 	config_slice := strings.SplitN(line, "=", 2)
@@ -105,6 +107,7 @@ func (this *ConfigReader) Scanner() error {
 	var field_map = make(map[string]interface{})
 	for scanner.Scan() {
 		// set DoubleMap
+		//fmt.Println(scanner.Text())
 		areaType, data := this.analysisConfigLine(scanner.Text())
 		switch areaType {
 		case AREA:
@@ -117,8 +120,8 @@ func (this *ConfigReader) Scanner() error {
 		case FIELD:
 			var field_v_slice []string = data.([]string)
 			field_map[field_v_slice[0]] = field_v_slice[1]
-		case INVALIDLINE, COMMENT:
-
+		case INVALIDLINE :
+			panic("the word setting is not illegal , words=" + scanner.Text())
 		}
 
 	}
@@ -129,11 +132,83 @@ func (this *ConfigReader) Scanner() error {
 		this.confMap[currentArea] = field_map
 		field_map = make(map[string]interface{})
 	}
-	fmt.Println(this.confMap)
+	//fmt.Println(this.confMap)
 	return nil
 
 }
 
+// ------------ default Instances ---------------
+
+// init configuration file 
+func Init(path string) error{
+	if err := SetConfigPath(path); err != nil {
+		return err
+	}
+	return scanner()
+}
+
+func GetInt(s , f string) (v int, e error){
+	var vstr string
+	if vstr ,  e = GetField(s ,f) ; e ==nil{
+		return strconv.Atoi(vstr)
+	}
+	return 
+}
+
+func GetInt32(s , f string) (v int32 , e error){
+	var vstr string
+	if vstr ,  e = GetField(s ,f) ; e == nil{
+		vInt , e :=strconv.Atoi(vstr)
+		return  int32(vInt) , e
+	}
+	return 
+}
+
+func GetInt64(s , f string) (v int64 , e error){
+	var vstr string
+	if vstr ,  e = GetField(s ,f) ; e == nil{
+		vInt , e :=strconv.Atoi(vstr)
+		return  int64(vInt) , e
+	}
+	return
+}
+
+func GetFloat32(s , f string) (v float32 , e error){
+	var vstr string
+	if vstr ,  e = GetField(s ,f) ; e == nil{
+		vInt , e :=strconv.ParseFloat(vstr , 32)
+		return  float32(vInt) , e
+	}
+	return
+
+}
+
+func GetFloat64(s , f string) (v float64 , e error){
+	var vstr string
+	if vstr ,  e = GetField(s ,f) ; e == nil{
+		vInt , e :=strconv.ParseFloat(vstr , 64)
+		return  float64(vInt) , e
+	}
+	return
+
+}
+
+func GetBool(s , f string) (v bool, e error){
+	var vstr string
+	if vstr ,  e = GetField(s ,f) ; e == nil{
+		vBool , e :=strconv.ParseBool(vstr)
+		return  vBool , e
+	}
+	return
+
+}
+
+func GetString(s , f string) (v string , e error){
+	return GetField(s ,f)
+}
+
+
+var configInst ConfigReaderI = &ConfigReader{confMap: make(DoubleMap)}
 
 func SetConfigPath(path string) error {
 	return configInst.SetConfigPath(path)
@@ -152,38 +227,4 @@ func scanner() error {
 	return configInst.Scanner()
 }
 
-func InitConfigReader(path string) error {
-	if err := SetConfigPath(path); err != nil {
-		return err
-	}
-	return scanner()
-}
 
-// init configuration file 
-func Init(path string) error{
-	if err := SetConfigPath(path); err != nil {
-		return err
-	}
-	return scanner()
-}
-
-func GetInt(s , f string) (v int, e error){
-	var vstr string
-	if vstr ,  e = GetField(s ,f) ; e!=nil{
-		return strconv.Atoi(vstr)
-	} else {
-		return
-	}
-}
-
-func GetInt32(s , f string){
-}
-
-func GetInt64(s , f string){
-}
-
-func GetFloat(s , f string){
-}
-
-func GetString(s , f string){
-}
